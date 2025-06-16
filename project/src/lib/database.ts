@@ -26,20 +26,17 @@ export interface Pet {
 export interface Service {
   id: string;
   provider_id: string;
-  name: string;
+  title: string;
   description: string;
-  price: number;
-  category: 'grooming' | 'veterinary' | 'training' | 'boarding' | 'other';
+  category: string;
+  price_from: number;
+  price_to: number;
   location: string;
   image_url: string;
-  status: 'available' | 'unavailable';
+  status: string;
+  availability: any; // jsonb
   created_at: string;
   updated_at: string;
-  profiles?: {
-    full_name: string;
-    rating: number;
-    total_reviews: number;
-  };
 }
 
 export interface Product {
