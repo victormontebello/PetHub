@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, MapPin, Star, Clock, Sparkles, Heart, Shield, Users } from 'lucide-react';
 import { getServices, addToFavorites, removeFromFavorites, getUserFavorites } from '../lib/database';
 import type { Service } from '../lib/database';
+import { supabase } from '../lib/supabase';
 
 export const ServicesPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -10,6 +11,7 @@ export const ServicesPage: React.FC = () => {
   const [favorites, setFavorites] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [providerProfiles, setProviderProfiles] = useState<Record<string, any>>({});
 
   const serviceTypes = [
     { id: 'all', name: 'Todos os Serviços' },
@@ -58,6 +60,22 @@ export const ServicesPage: React.FC = () => {
 
       const data = await getServices(filters);
       setServices(data);
+
+      // Buscar perfis dos provedores
+      const providerIds = Array.from(new Set(data.map((s: any) => s.provider_id)));
+      if (providerIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, full_name, rating, total_reviews')
+          .in('id', providerIds);
+        const profilesMap: Record<string, any> = {};
+        profilesData?.forEach((profile: any) => {
+          profilesMap[profile.id] = profile;
+        });
+        setProviderProfiles(profilesMap);
+      } else {
+        setProviderProfiles({});
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -220,18 +238,20 @@ export const ServicesPage: React.FC = () => {
                         <div className="flex justify-between items-start mb-2">
                           <div>
                             <h3 className="text-lg font-semibold text-gray-900">{service.title}</h3>
-                            <p className="text-sm text-gray-600">por {service.profiles?.full_name || 'Fornecedor'}</p>
+                            <p className="text-sm text-gray-600">
+                              por {providerProfiles[service.provider_id]?.full_name || 'Fornecedor'}
+                            </p>
                           </div>
                           <div className="text-right">
                             <div className="text-lg font-bold text-primary-600">
                               ${service.price_from}
                               {service.price_to && service.price_to !== service.price_from && ` - $${service.price_to}`}
                             </div>
-                            {service.profiles && service.profiles.rating > 0 && (
+                            {providerProfiles[service.provider_id] && providerProfiles[service.provider_id].rating > 0 && (
                               <div className="flex items-center space-x-1">
                                 <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                                <span className="text-sm text-gray-600">{service.profiles.rating.toFixed(1)}</span>
-                                <span className="text-sm text-gray-400">({service.profiles.total_reviews})</span>
+                                <span className="text-sm text-gray-600">{providerProfiles[service.provider_id].rating.toFixed(1)}</span>
+                                <span className="text-sm text-gray-400">({providerProfiles[service.provider_id].total_reviews})</span>
                               </div>
                             )}
                           </div>

@@ -18,9 +18,10 @@ export const CreateListingPage: React.FC = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const [serviceData, setServiceData] = useState({
-    name: '',
+    title: '',
     description: '',
-    price: '',
+    price_from: '',
+    price_to: '',
     category: '',
     location: '',
     status: 'available' as const
@@ -89,10 +90,12 @@ export const CreateListingPage: React.FC = () => {
       if (listingType === 'service') {
         await createService({
           ...serviceData,
-          price: Number(serviceData.price),
+          price_from: Number(serviceData.price_from),
+          price_to: Number(serviceData.price_to),
           provider_id: user?.id || '',
           image_url: imageUrl,
           category: serviceData.category as 'grooming' | 'veterinary' | 'training' | 'boarding' | 'other',
+          availability: {},
         });
       } else {
         await createProduct({
@@ -225,10 +228,10 @@ export const CreateListingPage: React.FC = () => {
                   type="text"
                   required
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  value={listingType === 'service' ? serviceData.name : productData.name}
+                  value={listingType === 'service' ? serviceData.title : productData.name}
                   onChange={(e) =>
                     listingType === 'service'
-                      ? setServiceData({ ...serviceData, name: e.target.value })
+                      ? setServiceData({ ...serviceData, title: e.target.value })
                       : setProductData({ ...productData, name: e.target.value })
                   }
                 />
@@ -278,7 +281,7 @@ export const CreateListingPage: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Preço
+                  Preço (De)
                 </label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
@@ -290,15 +293,39 @@ export const CreateListingPage: React.FC = () => {
                     min="0"
                     step="0.01"
                     className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    value={listingType === 'service' ? serviceData.price : productData.price}
+                    value={listingType === 'service' ? serviceData.price_from : productData.price}
                     onChange={(e) =>
                       listingType === 'service'
-                        ? setServiceData({ ...serviceData, price: e.target.value })
+                        ? setServiceData({ ...serviceData, price_from: e.target.value })
                         : setProductData({ ...productData, price: e.target.value })
                     }
                   />
                 </div>
               </div>
+
+              {listingType === 'service' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Preço (Até)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
+                      R$
+                    </span>
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      step="0.01"
+                      className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      value={serviceData.price_to}
+                      onChange={(e) =>
+                        setServiceData({ ...serviceData, price_to: e.target.value })
+                      }
+                    />
+                  </div>
+                </div>
+              )}
 
               {/* Service-specific fields */}
               {listingType === 'service' && (
