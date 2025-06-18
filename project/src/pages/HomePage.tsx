@@ -1,20 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+  import React from 'react';
 import { 
   PawPrint, 
   Heart, 
   Star, 
-  MapPin, 
-  Calendar, 
-  DollarSign,
   Stethoscope,
   ShoppingBag,
   Users
 } from 'lucide-react';
-import { supabase } from '../lib/supabase';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Search, Shield } from 'lucide-react';
+import { ArrowRight, Shield } from 'lucide-react';
 
 export const HomePage: React.FC = () => {
   const features = [
@@ -48,6 +42,13 @@ export const HomePage: React.FC = () => {
     { name: 'Veterinary', providers: '80+', icon: Stethoscope },
     { name: 'Training', providers: '120+', icon: Star }
   ];
+
+  const categoryMap: Record<string, string> = {
+    Dogs: 'dogs',
+    Cats: 'cats',
+    Birds: 'birds',
+    Fish: 'fish',
+  };
 
   return (
     <div className="animate-fade-in">
@@ -149,7 +150,7 @@ export const HomePage: React.FC = () => {
             {categories.map((category, index) => (
               <Link
                 key={index}
-                to="/pets"
+                to={`/pets?category=${categoryMap[category.name] || ''}`}
                 className="group relative overflow-hidden rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
               >
                 <div className="aspect-square">

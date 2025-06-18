@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Heart, Menu, X, User, Search } from 'lucide-react';
+import { Heart, Menu, X, User, Search, ShoppingBag } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export const Header: React.FC = () => {
@@ -14,6 +14,7 @@ export const Header: React.FC = () => {
     { name: 'Início', href: '/' },
     { name: 'Pets', href: '/pets' },
     { name: 'Serviços', href: '/services' },
+    { name: 'Produtos', href: '/products' },
   ];
 
   return (
@@ -60,6 +61,11 @@ export const Header: React.FC = () => {
                 />
               </div>
             </div>
+
+            {/* Ícone do carrinho à direita */}
+            <Link to="/cart" className="ml-4 relative group">
+              <ShoppingBag className="h-6 w-6 text-primary-500" />
+            </Link>
 
             {/* Menu do usuário */}
             <div className="hidden md:flex items-center space-x-4">

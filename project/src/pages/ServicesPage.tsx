@@ -1,17 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { Search, MapPin, Star, Clock, Sparkles, Heart, Shield, Users } from 'lucide-react';
-import { getServices, addToFavorites, removeFromFavorites, getUserFavorites } from '../lib/database';
-import type { Service } from '../lib/database';
+import React, { useState, useMemo } from 'react';
+import { Search, MapPin, Star, Sparkles, Heart, Shield, Users } from 'lucide-react';
+import {
+  useServices,
+  useProviderProfiles,
+  useUserFavorites,
+  useAddToFavorites,
+  useRemoveFromFavorites
+} from '../hooks/useServicesQueries';
+import { ContactCard } from '../components/ContactCard';
 import { supabase } from '../lib/supabase';
 
 export const ServicesPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedService, setSelectedService] = useState('all');
-  const [services, setServices] = useState<Service[]>([]);
-  const [favorites, setFavorites] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [providerProfiles, setProviderProfiles] = useState<Record<string, any>>({});
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [contactInfo, setContactInfo] = useState<any | null>(null);
 
   const serviceTypes = [
     { id: 'all', name: 'Todos os Serviços' },
@@ -21,6 +24,16 @@ export const ServicesPage: React.FC = () => {
     { id: 'training', name: 'Treinamento de Pets' },
     { id: 'veterinary', name: 'Veterinária' },
     { id: 'boarding', name: 'Alojamento de Pets' }
+  ];
+
+  const serviceCategories = [
+    { value: 'grooming', label: 'Banho & Tosa' },
+    { value: 'veterinary', label: 'Veterinário' },
+    { value: 'training', label: 'Adestramento' },
+    { value: 'boarding', label: 'Hotelzinho' },
+    { value: 'sitting', label: 'Cuidador' },
+    { value: 'walking', label: 'Passeio' },
+    { value: 'other', label: 'Outro' },
   ];
 
   const getServiceIcon = (category: string) => {
@@ -40,79 +53,57 @@ export const ServicesPage: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    fetchServices();
-    fetchFavorites();
-  }, [selectedService, searchQuery]);
+  // React Query hooks
+  const filters = {
+    category: selectedService !== 'all' ? selectedService : undefined,
+    search: searchQuery.trim() || undefined
+  };
 
-  const fetchServices = async () => {
+  const { data: services = [], isLoading, error } = useServices(filters);
+  const { data: favorites = [] } = useUserFavorites();
+  const addToFavoritesMutation = useAddToFavorites();
+  const removeFromFavoritesMutation = useRemoveFromFavorites();
+
+  // Extrair IDs dos provedores
+  const providerIds = useMemo(() => {
+    return services.map(service => service.provider_id).filter(Boolean);
+  }, [services]);
+
+  const { data: providerProfiles = {} } = useProviderProfiles(providerIds);
+
+  const handleToggleFavorite = async (serviceId: string) => {
+    const isFavorite = favorites.includes(serviceId);
+    
     try {
-      setLoading(true);
-      const filters: any = {};
-      
-      if (selectedService !== 'all') {
-        filters.category = selectedService;
-      }
-      
-      if (searchQuery.trim()) {
-        filters.search = searchQuery.trim();
-      }
-
-      const data = await getServices(filters);
-      setServices(data);
-
-      // Buscar perfis dos provedores
-      const providerIds = Array.from(new Set(data.map((s: any) => s.provider_id)));
-      if (providerIds.length > 0) {
-        const { data: profilesData } = await supabase
-          .from('profiles')
-          .select('id, full_name, rating, total_reviews')
-          .in('id', providerIds);
-        const profilesMap: Record<string, any> = {};
-        profilesData?.forEach((profile: any) => {
-          profilesMap[profile.id] = profile;
-        });
-        setProviderProfiles(profilesMap);
+      if (isFavorite) {
+        await removeFromFavoritesMutation.mutateAsync({ itemId: serviceId, itemType: 'service' });
       } else {
-        setProviderProfiles({});
+        await addToFavoritesMutation.mutateAsync({ itemId: serviceId, itemType: 'service' });
       }
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
     }
   };
 
-  const fetchFavorites = async () => {
+  const handleShowContact = async (providerId: string) => {
     try {
-      const data = await getUserFavorites();
-      const serviceFavorites = data
-        .filter(fav => fav.item_type === 'service')
-        .map(fav => fav.item_id);
-      setFavorites(serviceFavorites);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('full_name, email, phone')
+        .eq('id', providerId)
+        .single();
+      if (error) {
+        console.error('Erro ao buscar contato:', error);
+        return;
+      }
+      setContactInfo(data);
+      setShowContactModal(true);
     } catch (err) {
-      // User might not be logged in
-      setFavorites([]);
+      console.error('Erro ao buscar contato:', err);
     }
   };
 
-  const toggleFavorite = async (serviceId: string) => {
-    try {
-      const isFavorited = favorites.includes(serviceId);
-      
-      if (isFavorited) {
-        await removeFromFavorites(serviceId, 'service');
-        setFavorites(favorites.filter(id => id !== serviceId));
-      } else {
-        await addToFavorites(serviceId, 'service');
-        setFavorites([...favorites, serviceId]);
-      }
-    } catch (err: any) {
-      setError(err.message);
-    }
-  };
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 py-8">
         <div className="px-4 sm:px-6 lg:px-8">
@@ -189,7 +180,7 @@ export const ServicesPage: React.FC = () => {
         {/* Error Message */}
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg mb-6">
-            {error}
+            {error.message}
           </div>
         )}
 
@@ -267,17 +258,17 @@ export const ServicesPage: React.FC = () => {
                         {/* Category Badge */}
                         <div className="mb-4">
                           <span className="bg-primary-50 text-primary-700 px-3 py-1 rounded-full text-xs font-medium capitalize">
-                            {service.category.replace('_', ' ')}
+                            {serviceCategories.find(cat => cat.value === service.category)?.label || service.category}
                           </span>
                         </div>
 
                         {/* Actions */}
                         <div className="flex space-x-3">
-                          <button className="flex-1 bg-primary-500 text-white py-2 px-4 rounded-lg hover:bg-primary-600 transition-colors font-medium">
+                          <button className="flex-1 bg-primary-500 text-white py-2 px-4 rounded-lg hover:bg-primary-600 transition-colors font-medium" onClick={() => handleShowContact(service.provider_id)}>
                             Contato Fornecedor
                           </button>
                           <button 
-                            onClick={() => toggleFavorite(service.id)}
+                            onClick={() => handleToggleFavorite(service.id)}
                             className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                           >
                             <Heart className={`h-5 w-5 transition-colors ${
@@ -303,6 +294,10 @@ export const ServicesPage: React.FC = () => {
               Carregar mais serviços
             </button>
           </div>
+        )}
+
+        {showContactModal && contactInfo && (
+          <ContactCard contactInfo={contactInfo} onClose={() => setShowContactModal(false)} />
         )}
       </div>
     </div>

@@ -9,62 +9,30 @@ import {
   Edit3, 
   Trash2, 
   MapPin, 
-  Phone, 
-  Mail,
-  Calendar,
-  DollarSign,
   Star,
   PawPrint,
   Sparkles
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { v4 as uuidv4 } from 'uuid';
 import { ContactCard } from '../components/ContactCard';
-import { getUserFavorites, getPetById, getServiceById, createService } from '../lib/database';
-
-interface Pet {
-  id: string;
-  seller_id: string;
-  name: string;
-  breed: string;
-  age: string;
-  is_donation: boolean;
-  description: string;
-  image_url: string;
-  category: string;
-  location: string;
-  status: 'available' | 'adopted' | 'pending';
-  created_at: string;
-  vaccines?: string[];
-}
-
-interface Service {
-  id: string;
-  title: string;
-  description: string;
-  price_from: number;
-  price_to: number;
-  category: string;
-  location: string;
-  image_url: string;
-  status: 'active' | 'inactive';
-  created_at: string;
-}
+import {
+  useUserProfile,
+  useUserPets,
+  useUserServices,
+  useUserFavorites,
+  useUpdateProfile,
+  useDeletePet,
+  useDeleteService,
+  useAddPet,
+  useAddService,
+  useUpdateProfileImage,
+  useRemoveProfileImage
+} from '../hooks/useProfileQueries';
 
 export const ProfilePage: React.FC = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'overview' | 'pets' | 'services' | 'favorites' | 'settings'>('overview');
-  const [userPets, setUserPets] = useState<Pet[]>([]);
-  const [userServices, setUserServices] = useState<Service[]>([]);
-  const [profileData, setProfileData] = useState({
-    full_name: '',
-    phone: '',
-    location: '',
-    bio: '',
-    avatar_url: '',
-    user_type: 'consumer'
-  });
   const [isEditing, setIsEditing] = useState(false);
   const [showAddPetForm, setShowAddPetForm] = useState(false);
   const [newPet, setNewPet] = useState({
@@ -77,16 +45,11 @@ export const ProfilePage: React.FC = () => {
     status: 'available',
     is_donation: true
   });
-  const [addingPet, setAddingPet] = useState(false);
-  const [vaccineInput, setVaccineInput] = useState('');
+  const [_, setVaccineInput] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [availableVaccines, setAvailableVaccines] = useState<{id: string, name: string}[]>([]);
   const [selectedVaccines, setSelectedVaccines] = useState<string[]>([]);
-  const [contactInfo, setContactInfo] = useState<any | null>(null);
+  const [contactInfo] = useState<any | null>(null);
   const [showContactModal, setShowContactModal] = useState(false);
-  const [userFavorites, setUserFavorites] = useState<any[]>([]);
-  const [favoritePets, setFavoritePets] = useState<any[]>([]);
-  const [favoriteServices, setFavoriteServices] = useState<any[]>([]);
   const [showAddServiceForm, setShowAddServiceForm] = useState(false);
   const [newService, setNewService] = useState({
     title: '',
@@ -98,10 +61,18 @@ export const ProfilePage: React.FC = () => {
     status: 'active',
     availability: '',
   });
-  const [addingService, setAddingService] = useState(false);
   const [showProfileImageModal, setShowProfileImageModal] = useState(false);
   const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
-  const [uploadingProfileImage, setUploadingProfileImage] = useState(false);
+  
+  // Estado local para edição do perfil
+  const [editingProfileData, setEditingProfileData] = useState({
+    full_name: '',
+    phone: '',
+    location: '',
+    bio: '',
+    avatar_url: '',
+    user_type: 'consumer'
+  });
 
   // Lista de categorias possíveis
   const petCategories = [
@@ -122,6 +93,40 @@ export const ProfilePage: React.FC = () => {
     { value: 'other', label: 'Outro' },
   ];
 
+  // React Query hooks
+  const { data: profileData = {
+    full_name: '',
+    phone: '',
+    location: '',
+    bio: '',
+    avatar_url: '',
+    user_type: 'consumer'
+  } } = useUserProfile(user?.id);
+
+  const { data: userPets = [] } = useUserPets(user?.id);
+  const { data: userServices = [] } = useUserServices(user?.id);
+  const { data: favoritesData = { favorites: [], pets: [], services: [] } } = useUserFavorites(user?.id);
+
+  // Mutations
+  const updateProfileMutation = useUpdateProfile();
+  const deletePetMutation = useDeletePet();
+  const deleteServiceMutation = useDeleteService();
+  const addPetMutation = useAddPet();
+  const addServiceMutation = useAddService();
+  const updateProfileImageMutation = useUpdateProfileImage();
+  const removeProfileImageMutation = useRemoveProfileImage();
+
+  // Extrair dados dos favoritos
+  const favoritePets = favoritesData.pets;
+  const favoriteServices = favoritesData.services;
+
+  // Atualizar dados de edição quando o perfil carregar
+  useEffect(() => {
+    if (profileData) {
+      setEditingProfileData(profileData);
+    }
+  }, [profileData]);
+
   useEffect(() => {
     if (!loading && !user) {
       navigate('/auth');
@@ -136,143 +141,20 @@ export const ProfilePage: React.FC = () => {
         full_name: user.user_metadata?.full_name || user.email || '',
         // outros campos podem ser preenchidos aqui se necessário
       });
-      fetchUserProfile();
-      fetchUserPets();
-      fetchUserServices();
-      fetchFavorites();
     }
   }, [user]);
 
-  useEffect(() => {
-    const fetchVaccines = async () => {
-      const { data, error } = await supabase.from('vaccines').select('*').order('name');
-      if (!error && data) setAvailableVaccines(data);
-    };
-    fetchVaccines();
-  }, []);
-
-  const fetchUserProfile = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user?.id)
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching profile:', error);
-        return;
-      }
-
-      if (data) {
-        setProfileData(data);
-      }
-    } catch (error) {
-      console.error('Error:', error);
-    }
-  };
-
-  const fetchUserPets = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('pets')
-        .select('*')
-        .eq('seller_id', user?.id)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching pets:', error);
-        return;
-      }
-
-      if (data && data.length > 0) {
-        const petsWithVaccines = await Promise.all(data.map(async (pet: any) => {
-          const { data: petVaccines } = await supabase
-            .from('pet_vaccines')
-            .select('vaccine_id, vaccines(name)')
-            .eq('pet_id', pet.id);
-          type PetVaccineRow = { vaccines?: { name?: string } };
-          const vaccinesArr = (petVaccines as PetVaccineRow[] | null) || [];
-          return {
-            ...pet,
-            vaccines: vaccinesArr.map(v => v.vaccines?.name || '').filter(Boolean)
-          };
-        }));
-        setUserPets(petsWithVaccines);
-      } else {
-        setUserPets([]);
-      }
-    } catch (error) {
-      console.error('Error:', error);
-    }
-  };
-
-  const fetchUserServices = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('services')
-        .select('*')
-        .eq('provider_id', user?.id)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching services:', error);
-        return;
-      }
-
-      setUserServices(data || []);
-    } catch (error) {
-      console.error('Error:', error);
-    }
-  };
-
-  const fetchFavorites = async () => {
-    try {
-      const favorites = await getUserFavorites();
-      setUserFavorites(favorites);
-      // Separar por tipo
-      const petFavorites = favorites.filter((fav: any) => fav.item_type === 'pet');
-      const serviceFavorites = favorites.filter((fav: any) => fav.item_type === 'service');
-      // Buscar detalhes dos pets favoritos
-      const pets = await Promise.all(petFavorites.map(async (fav: any) => {
-        try {
-          return await getPetById(fav.item_id);
-        } catch {
-          return null;
-        }
-      }));
-      setFavoritePets(pets.filter(Boolean));
-      // Buscar detalhes dos serviços favoritos
-      const services = await Promise.all(serviceFavorites.map(async (fav: any) => {
-        try {
-          return await getServiceById(fav.item_id);
-        } catch {
-          return null;
-        }
-      }));
-      setFavoriteServices(services.filter(Boolean));
-    } catch (err) {
-      setUserFavorites([]);
-      setFavoritePets([]);
-      setFavoriteServices([]);
-    }
-  };
-
   const updateProfile = async () => {
+    if (!user) return;
+    
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .upsert({
-          id: user?.id,
-          ...profileData,
+      await updateProfileMutation.mutateAsync({
+        userId: user.id,
+        profileData: {
+          ...editingProfileData,
           updated_at: new Date().toISOString()
-        });
-
-      if (error) {
-        console.error('Error updating profile:', error);
-        return;
-      }
-
+        }
+      });
       setIsEditing(false);
     } catch (error) {
       console.error('Error:', error);
@@ -283,17 +165,7 @@ export const ProfilePage: React.FC = () => {
     if (!confirm('Are you sure you want to delete this pet listing?')) return;
 
     try {
-      const { error } = await supabase
-        .from('pets')
-        .delete()
-        .eq('id', petId);
-
-      if (error) {
-        console.error('Error deleting pet:', error);
-        return;
-      }
-
-      fetchUserPets();
+      await deletePetMutation.mutateAsync(petId);
     } catch (error) {
       console.error('Error:', error);
     }
@@ -303,17 +175,7 @@ export const ProfilePage: React.FC = () => {
     if (!confirm('Are you sure you want to delete this service listing?')) return;
 
     try {
-      const { error } = await supabase
-        .from('services')
-        .delete()
-        .eq('id', serviceId);
-
-      if (error) {
-        console.error('Error deleting service:', error);
-        return;
-      }
-
-      fetchUserServices();
+      await deleteServiceMutation.mutateAsync(serviceId);
     } catch (error) {
       console.error('Error:', error);
     }
@@ -321,34 +183,22 @@ export const ProfilePage: React.FC = () => {
 
   const handleAddPet = async (e: React.FormEvent) => {
     e.preventDefault();
-    setAddingPet(true);
-    let imageUrl = '';
+    
+    if (!user) return;
+
     try {
       // Garante que o perfil existe e aguarda a operação
       await ensureProfile();
 
-      if (imageFile) {
-        const fileExt = imageFile.name.split('.').pop();
-        const fileName = `${uuidv4()}.${fileExt}`;
-        const { data, error: uploadError } = await supabase.storage.from('pets').upload(fileName, imageFile);
-        if (uploadError) throw uploadError;
-        const { data: publicUrlData } = supabase.storage.from('pets').getPublicUrl(fileName);
-        imageUrl = publicUrlData.publicUrl;
-      }
-      const { data: petData, error } = await supabase.from('pets').insert({
-        ...newPet,
-        seller_id: user?.id,
-        created_at: new Date().toISOString(),
-        image_url: imageUrl,
-      }).select().single();
-      if (error || !petData) {
-        alert('Erro ao adicionar pet!');
-        setAddingPet(false);
-        return;
-      }
-      for (const vaccineId of selectedVaccines) {
-        await supabase.from('pet_vaccines').insert({ pet_id: petData.id, vaccine_id: vaccineId });
-      }
+      await addPetMutation.mutateAsync({
+        petData: {
+          ...newPet,
+          seller_id: user.id,
+        },
+        imageFile,
+        selectedVaccines
+      });
+
       setShowAddPetForm(false);
       setNewPet({
         name: '', 
@@ -363,17 +213,17 @@ export const ProfilePage: React.FC = () => {
       setImageFile(null);
       setSelectedVaccines([]);
       setVaccineInput('');
-      fetchUserPets();
     } catch (err) {
       alert('Erro ao adicionar pet!');
     }
-    setAddingPet(false);
   };
 
   const ensureProfile = async () => {
+    if (!user) return;
+    
     const { error } = await supabase.from('profiles').upsert({
-      id: user?.id,
-      full_name: user?.user_metadata?.full_name || user?.email || '',
+      id: user.id,
+      full_name: user.user_metadata?.full_name || user.email || '',
       // outros campos default se quiser
     });
     if (error) {
@@ -381,44 +231,22 @@ export const ProfilePage: React.FC = () => {
     }
   };
 
-  const handleShowContact = async (ownerId: string) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('full_name, email, phone')
-      .eq('id', ownerId)
-      .single();
-    if (!error && data) {
-      setContactInfo(data);
-      setShowContactModal(true);
-    }
-  };
-
   const handleAddService = async (e: React.FormEvent) => {
     e.preventDefault();
-    setAddingService(true);
-    let imageUrl = '';
+    
+    if (!user) return;
+
     try {
-      await ensureProfile();
-      if (imageFile) {
-        const fileExt = imageFile.name.split('.').pop();
-        const fileName = `${uuidv4()}.${fileExt}`;
-        const { data, error: uploadError } = await supabase.storage.from('services').upload(fileName, imageFile);
-        if (uploadError) throw uploadError;
-        const { data: publicUrlData } = supabase.storage.from('services').getPublicUrl(fileName);
-        imageUrl = publicUrlData.publicUrl;
-      }
-      await createService({
-        provider_id: user?.id as string,
-        title: newService.title,
-        description: newService.description,
-        category: newService.category,
-        price_from: Number(newService.price_from),
-        price_to: Number(newService.price_to),
-        location: newService.location,
-        image_url: imageUrl,
-        status: newService.status,
-        availability: newService.availability ? JSON.parse(newService.availability) : null,
+      await addServiceMutation.mutateAsync({
+        serviceData: {
+          ...newService,
+          provider_id: user.id,
+          price_from: Number(newService.price_from),
+          price_to: Number(newService.price_to),
+        },
+        imageFile: imageFile
       });
+
       setShowAddServiceForm(false);
       setNewService({
         title: '',
@@ -431,11 +259,9 @@ export const ProfilePage: React.FC = () => {
         availability: '',
       });
       setImageFile(null);
-      fetchUserServices();
     } catch (err) {
       alert('Erro ao adicionar serviço!');
     }
-    setAddingService(false);
   };
 
   const handleProfileImageClick = () => {
@@ -444,43 +270,30 @@ export const ProfilePage: React.FC = () => {
 
   const handleProfileImageUpload = async () => {
     if (!profileImageFile || !user) return;
-    setUploadingProfileImage(true);
+    
     try {
-      const fileExt = profileImageFile.name.split('.').pop();
-      const fileName = `${user.id}.${fileExt}`;
-      // Remove imagem antiga se existir
-      await supabase.storage.from('profiles').remove([`${user.id}`]);
-      // Faz upload da nova imagem
-      const { error: uploadError } = await supabase.storage.from('profiles').upload(fileName, profileImageFile, { upsert: true });
-      if (uploadError) throw uploadError;
-      // Pega a URL pública
-      const { data: publicUrlData } = supabase.storage.from('profiles').getPublicUrl(fileName);
-      // Atualiza o perfil no banco
-      await supabase.from('profiles').update({ avatar_url: publicUrlData.publicUrl }).eq('id', user.id);
-      setProfileData((prev: any) => ({ ...prev, avatar_url: publicUrlData.publicUrl }));
+      await updateProfileImageMutation.mutateAsync({
+        userId: user.id,
+        imageFile: profileImageFile
+      });
+      
       setShowProfileImageModal(false);
       setProfileImageFile(null);
     } catch (err) {
       alert('Erro ao atualizar foto de perfil!');
     }
-    setUploadingProfileImage(false);
   };
 
   const handleProfileImageRemove = async () => {
     if (!user) return;
-    setUploadingProfileImage(true);
+    
     try {
-      // Remove do storage
-      await supabase.storage.from('profiles').remove([`${user.id}.png`, `${user.id}.jpg`, `${user.id}.jpeg`, `${user.id}`]);
-      // Remove do banco
-      await supabase.from('profiles').update({ avatar_url: '' }).eq('id', user.id);
-      setProfileData((prev: any) => ({ ...prev, avatar_url: '' }));
+      await removeProfileImageMutation.mutateAsync(user.id);
       setShowProfileImageModal(false);
       setProfileImageFile(null);
     } catch (err) {
       alert('Erro ao remover foto de perfil!');
     }
-    setUploadingProfileImage(false);
   };
 
   if (loading) {
@@ -690,7 +503,7 @@ export const ProfilePage: React.FC = () => {
                     {userServices.slice(0, 3).map((service) => (
                       <div key={service.id} className="flex items-center space-x-3 mb-3 last:mb-0">
                         <img 
-                          src={service.image_url} 
+                          src={service.image_url || 'https://images.pexels.com/photos/2607544/pexels-photo-2607544.jpeg?auto=compress&cs=tinysrgb&w=400'} 
                           alt={service.title}
                           className="w-12 h-12 rounded-lg object-cover"
                         />
@@ -748,7 +561,7 @@ export const ProfilePage: React.FC = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
                     <textarea required className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-3" value={newPet.description} onChange={e => setNewPet({ ...newPet, description: e.target.value })} />
                     <div className="flex space-x-2 mt-2">
-                      <button type="submit" disabled={addingPet} className="bg-primary-500 text-white px-4 py-2 rounded-lg hover:bg-primary-600 transition-colors">{addingPet ? 'Salvando...' : 'Salvar'}</button>
+                      <button type="submit" className="bg-primary-500 text-white px-4 py-2 rounded-lg hover:bg-primary-600 transition-colors">Salvar</button>
                       <button type="button" onClick={() => setShowAddPetForm(false)} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors">Cancelar</button>
                     </div>
                   </div>
@@ -841,10 +654,10 @@ export const ProfilePage: React.FC = () => {
                     </select>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Localização</label>
                     <input required className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-3" value={newService.location} onChange={e => setNewService({ ...newService, location: e.target.value })} />
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Imagem</label>
-                    <input required type="file" accept="image/*" className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-3" onChange={e => setImageFile(e.target.files ? e.target.files[0] : null)} />
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Imagem (Opcional)</label>
+                    <input type="file" accept="image/*" className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-3" onChange={e => setImageFile(e.target.files ? e.target.files[0] : null)} />
                     <div className="flex space-x-2 mt-2">
-                      <button type="submit" disabled={addingService} className="bg-primary-500 text-white px-4 py-2 rounded-lg hover:bg-primary-600 transition-colors">{addingService ? 'Salvando...' : 'Salvar'}</button>
+                      <button type="submit" className="bg-primary-500 text-white px-4 py-2 rounded-lg hover:bg-primary-600 transition-colors">Salvar</button>
                       <button type="button" onClick={() => setShowAddServiceForm(false)} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors">Cancelar</button>
                     </div>
                   </div>
@@ -865,7 +678,7 @@ export const ProfilePage: React.FC = () => {
                       <div key={service.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
                         <div className="flex items-start space-x-4">
                           <img 
-                            src={service.image_url} 
+                            src={service.image_url || 'https://images.pexels.com/photos/2607544/pexels-photo-2607544.jpeg?auto=compress&cs=tinysrgb&w=400'} 
                             alt={service.title}
                             className="w-16 h-16 rounded-lg object-cover"
                           />
@@ -882,7 +695,9 @@ export const ProfilePage: React.FC = () => {
                                 <span className="text-lg font-bold text-primary-600">
                                   R${service.price_from} - R${service.price_to}
                                 </span>
-                                <span className="text-sm text-gray-500">{service.category}</span>
+                                <span className="text-sm text-gray-500">
+                                  {serviceCategories.find(cat => cat.value === service.category)?.label || service.category}
+                                </span>
                               </div>
                               <div className="flex space-x-2">
                                 <button className="bg-gray-100 text-gray-700 py-2 px-3 rounded-lg hover:bg-gray-200 transition-colors flex items-center space-x-1">
@@ -942,7 +757,11 @@ export const ProfilePage: React.FC = () => {
                         {favoriteServices.map((service: any) => (
                           <div key={service.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
                             <div className="flex items-start space-x-4">
-                              <img src={service.image_url} alt={service.title} className="w-16 h-16 rounded-lg object-cover" />
+                              <img 
+                                src={service.image_url || 'https://images.pexels.com/photos/2607544/pexels-photo-2607544.jpeg?auto=compress&cs=tinysrgb&w=400'} 
+                                alt={service.title}
+                                className="w-16 h-16 rounded-lg object-cover"
+                              />
                               <div className="flex-1">
                                 <h4 className="text-lg font-semibold text-gray-900 mb-1">{service.title}</h4>
                                 <p className="text-gray-600 mb-2">{service.description}</p>
@@ -996,8 +815,8 @@ export const ProfilePage: React.FC = () => {
                   </label>
                   <input
                     type="text"
-                    value={profileData.full_name}
-                    onChange={(e) => setProfileData({...profileData, full_name: e.target.value})}
+                    value={editingProfileData.full_name}
+                    onChange={(e) => setEditingProfileData({...editingProfileData, full_name: e.target.value})}
                     disabled={!isEditing}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-gray-50"
                   />
@@ -1008,8 +827,8 @@ export const ProfilePage: React.FC = () => {
                     Tipo de Usuário
                   </label>
                   <select
-                    value={profileData.user_type}
-                    onChange={(e) => setProfileData({ ...profileData, user_type: e.target.value })}
+                    value={editingProfileData.user_type}
+                    onChange={(e) => setEditingProfileData({ ...editingProfileData, user_type: e.target.value })}
                     disabled={!isEditing}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-gray-50"
                   >
@@ -1037,8 +856,8 @@ export const ProfilePage: React.FC = () => {
                   </label>
                   <input
                     type="tel"
-                    value={profileData.phone}
-                    onChange={(e) => setProfileData({...profileData, phone: e.target.value})}
+                    value={editingProfileData.phone}
+                    onChange={(e) => setEditingProfileData({...editingProfileData, phone: e.target.value})}
                     disabled={!isEditing}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-gray-50"
                   />
@@ -1050,8 +869,8 @@ export const ProfilePage: React.FC = () => {
                   </label>
                   <input
                     type="text"
-                    value={profileData.location}
-                    onChange={(e) => setProfileData({...profileData, location: e.target.value})}
+                    value={editingProfileData.location}
+                    onChange={(e) => setEditingProfileData({...editingProfileData, location: e.target.value})}
                     disabled={!isEditing}
                     placeholder="Cidade, Estado"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-gray-50"
@@ -1063,8 +882,8 @@ export const ProfilePage: React.FC = () => {
                     Biografia (Opcional)
                   </label>
                   <textarea
-                    value={profileData.bio}
-                    onChange={(e) => setProfileData({...profileData, bio: e.target.value})}
+                    value={editingProfileData.bio}
+                    onChange={(e) => setEditingProfileData({...editingProfileData, bio: e.target.value})}
                     disabled={!isEditing}
                     rows={4}
                     placeholder="Diga aos potenciais compradores e clientes sobre você e sua experiência com pets..."
@@ -1089,17 +908,17 @@ export const ProfilePage: React.FC = () => {
               <div className="flex flex-col items-center mb-4">
                 {profileImageFile ? (
                   <img src={URL.createObjectURL(profileImageFile)} alt="Preview" className="w-24 h-24 rounded-full object-cover mb-2" />
-                ) : profileData.avatar_url ? (
-                  <img src={profileData.avatar_url} alt="Atual" className="w-24 h-24 rounded-full object-cover mb-2" />
+                ) : editingProfileData.avatar_url ? (
+                  <img src={editingProfileData.avatar_url} alt="Atual" className="w-24 h-24 rounded-full object-cover mb-2" />
                 ) : (
                   <User className="w-24 h-24 text-gray-300 mb-2" />
                 )}
                 <input type="file" accept="image/*" onChange={e => setProfileImageFile(e.target.files ? e.target.files[0] : null)} className="mb-2" />
               </div>
               <div className="flex justify-between">
-                <button onClick={handleProfileImageRemove} disabled={uploadingProfileImage} className="bg-red-100 text-red-700 px-4 py-2 rounded-lg hover:bg-red-200">Remover</button>
+                <button onClick={handleProfileImageRemove} className="bg-red-100 text-red-700 px-4 py-2 rounded-lg hover:bg-red-200">Remover</button>
                 <button onClick={() => setShowProfileImageModal(false)} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300">Cancelar</button>
-                <button onClick={handleProfileImageUpload} disabled={uploadingProfileImage || !profileImageFile} className="bg-primary-500 text-white px-4 py-2 rounded-lg hover:bg-primary-600">{uploadingProfileImage ? 'Salvando...' : 'Salvar'}</button>
+                <button onClick={handleProfileImageUpload} className="bg-primary-500 text-white px-4 py-2 rounded-lg hover:bg-primary-600">Salvar</button>
               </div>
             </div>
           </div>

@@ -1,17 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Filter, Heart, MapPin, Star, Camera, Shield, Gift } from 'lucide-react';
-import { getPets, addToFavorites, removeFromFavorites, getUserFavorites } from '../lib/database';
-import type { Pet } from '../lib/database';
+import React, { useState } from 'react';
+import { Search, Heart, MapPin, Star, Camera, Shield, Gift } from 'lucide-react';
 import { ContactCard } from '../components/ContactCard';
 import { supabase } from '../lib/supabase';
+import {
+  usePets,
+  useUserFavorites,
+  useAddToFavorites,
+  useRemoveFromFavorites
+} from '../hooks/usePetsQueries';
+import { useSearchParams } from 'react-router-dom';
 
 export const PetsPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const initialCategory = searchParams.get('category') || 'all';
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [pets, setPets] = useState<Pet[]>([]);
-  const [favorites, setFavorites] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [contactInfo, setContactInfo] = useState<any | null>(null);
   const [showContactModal, setShowContactModal] = useState(false);
 
@@ -25,75 +28,52 @@ export const PetsPage: React.FC = () => {
     { id: 'hamsters', name: 'Hamsters' }
   ];
 
-  useEffect(() => {
-    fetchPets();
-    fetchFavorites();
-  }, [selectedCategory, searchQuery]);
-
-  const fetchPets = async () => {
-    try {
-      setLoading(true);
-      const filters: any = {};
-      
-      if (selectedCategory !== 'all') {
-        filters.category = selectedCategory;
-      }
-      
-      if (searchQuery.trim()) {
-        filters.search = searchQuery.trim();
-      }
-
-      const data = await getPets(filters);
-      setPets(data);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+  // React Query hooks
+  const filters = {
+    category: selectedCategory !== 'all' ? selectedCategory : undefined,
+    search: searchQuery.trim() || undefined
   };
 
-  const fetchFavorites = async () => {
-    try {
-      const data = await getUserFavorites();
-      const petFavorites = data
-        .filter(fav => fav.item_type === 'pet')
-        .map(fav => fav.item_id);
-      setFavorites(petFavorites);
-    } catch (err) {
-      // User might not be logged in
-      setFavorites([]);
-    }
-  };
+  const { data: pets = [], isLoading, error } = usePets(filters);
+  const { data: favorites = [] } = useUserFavorites();
+  const addToFavoritesMutation = useAddToFavorites();
+  const removeFromFavoritesMutation = useRemoveFromFavorites();
 
-  const toggleFavorite = async (petId: string) => {
+  const handleShowContact = async (ownerId: string) => {
     try {
-      const isFavorited = favorites.includes(petId);
-      
-      if (isFavorited) {
-        await removeFromFavorites(petId, 'pet');
-        setFavorites(favorites.filter(id => id !== petId));
-      } else {
-        await addToFavorites(petId, 'pet');
-        setFavorites([...favorites, petId]);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('full_name, email, phone')
+        .eq('id', ownerId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching contact info:', error);
+        return;
       }
-    } catch (err: any) {
-      setError(err.message);
-    }
-  };
 
-  const handleShowContact = async (sellerId: string) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('full_name, email, phone')
-      .eq('id', sellerId)
-      .single();
-    if (!error && data) {
       setContactInfo(data);
       setShowContactModal(true);
+    } catch (error) {
+      console.error('Error:', error);
     }
   };
 
-  if (loading) {
+  const handleToggleFavorite = async (petId: string) => {
+    const isFavorite = favorites.includes(petId);
+    
+    try {
+      if (isFavorite) {
+        await removeFromFavoritesMutation.mutateAsync({ itemId: petId, itemType: 'pet' });
+      } else {
+        await addToFavoritesMutation.mutateAsync({ itemId: petId, itemType: 'pet' });
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+    }
+  };
+
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 py-8">
         <div className="px-4 sm:px-6 lg:px-8">
@@ -168,7 +148,7 @@ export const PetsPage: React.FC = () => {
         {/* Error Message */}
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg mb-6">
-            {error}
+            {error.message}
           </div>
         )}
 
@@ -197,7 +177,7 @@ export const PetsPage: React.FC = () => {
                     className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
                   />
                   <button 
-                    onClick={() => toggleFavorite(pet.id)}
+                    onClick={() => handleToggleFavorite(pet.id)}
                     className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm p-2 rounded-full hover:bg-white transition-colors"
                   >
                     <Heart className={`h-5 w-5 transition-colors ${

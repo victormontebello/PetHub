@@ -1,9 +1,13 @@
 import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { AuthProvider } from './contexts/AuthContext';
 import { CreateListingPage } from './pages/CreateListingPage';
+import { ProductsPage } from './pages/ProductsPage';
+import { CartProvider } from './contexts/CartContext';
+import { CartPage } from './pages/CartPage';
 
 // Lazy loading dos componentes
 const HomePage = lazy(() => import('./pages/HomePage').then(module => ({ default: module.HomePage })));
@@ -19,28 +23,46 @@ const LoadingSpinner = () => (
   </div>
 );
 
+// Configuração do React Query
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutos
+      cacheTime: 10 * 60 * 1000, // 10 minutos
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <div className="min-h-screen bg-gray-50 text-gray-900 transition-colors">
-          <Header />
-          <main className="pt-16 px-2 sm:px-4">
-            <Suspense fallback={<LoadingSpinner />}>
-              <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/pets" element={<PetsPage />} />
-                <Route path="/services" element={<ServicesPage />} />
-                <Route path="/auth" element={<AuthPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/create-listing" element={<CreateListingPage />} />
-              </Routes>
-            </Suspense>
-          </main>
-          <Footer />
-        </div>
-      </Router>
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <CartProvider>
+        <AuthProvider>
+          <Router>
+            <div className="min-h-screen bg-gray-50 text-gray-900 transition-colors">
+              <Header />
+              <main className="pt-16 px-2 sm:px-4">
+                <Suspense fallback={<LoadingSpinner />}>
+                  <Routes>
+                    <Route path="/" element={<HomePage />} />
+                    <Route path="/pets" element={<PetsPage />} />
+                    <Route path="/services" element={<ServicesPage />} />
+                    <Route path="/products" element={<ProductsPage />} />
+                    <Route path="/auth" element={<AuthPage />} />
+                    <Route path="/profile" element={<ProfilePage />} />
+                    <Route path="/create-listing" element={<CreateListingPage />} />
+                    <Route path="/cart" element={<CartPage />} />
+                  </Routes>
+                </Suspense>
+              </main>
+              <Footer />
+            </div>
+          </Router>
+        </AuthProvider>
+      </CartProvider>
+    </QueryClientProvider>
   );
 }
 

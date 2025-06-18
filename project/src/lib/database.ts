@@ -225,7 +225,7 @@ export const getServices = async (filters?: {
         total_reviews
       )
     `)
-    .eq('status', 'available')
+    .eq('status', 'active')
     .order('created_at', { ascending: false });
 
   if (filters?.category && filters.category !== 'all') {
