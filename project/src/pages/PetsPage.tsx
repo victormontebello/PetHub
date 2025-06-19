@@ -4,9 +4,9 @@ import { ContactCard } from '../components/ContactCard';
 import { supabase } from '../lib/supabase';
 import {
   usePets,
-  useUserFavorites,
-  useAddToFavorites,
-  useRemoveFromFavorites
+  userFavoritesHook,
+  addToFavoritesHook,
+  removeFromFavoritesHook
 } from '../hooks/usePetsQueries';
 import { useSearchParams } from 'react-router-dom';
 
@@ -35,9 +35,9 @@ export const PetsPage: React.FC = () => {
   };
 
   const { data: pets = [], isLoading, error } = usePets(filters);
-  const { data: favorites = [] } = useUserFavorites();
-  const addToFavoritesMutation = useAddToFavorites();
-  const removeFromFavoritesMutation = useRemoveFromFavorites();
+  const { data: favorites = [] } = userFavoritesHook() as { data: string[] };
+  const addToFavoritesMutation = addToFavoritesHook();
+  const removeFromFavoritesMutation = removeFromFavoritesHook();
 
   const handleShowContact = async (ownerId: string) => {
     try {

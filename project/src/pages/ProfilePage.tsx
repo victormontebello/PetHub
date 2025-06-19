@@ -19,7 +19,7 @@ import {
   useUserProfile,
   useUserPets,
   useUserServices,
-  useUserFavorites,
+  userFavoritesHook,
   useUpdateProfile,
   useDeletePet,
   useDeleteService,
@@ -28,6 +28,7 @@ import {
   useUpdateProfileImage,
   useRemoveProfileImage
 } from '../hooks/useProfileQueries';
+import { MESSAGES } from '../messages';
 
 export const ProfilePage: React.FC = () => {
   const { user, loading } = useAuth();
@@ -91,6 +92,7 @@ export const ProfilePage: React.FC = () => {
     { value: 'training', label: 'Adestramento' },
     { value: 'boarding', label: 'Hotelzinho' },
     { value: 'other', label: 'Outro' },
+    { value: 'temporary', label: 'Temporário' },
   ];
 
   // React Query hooks
@@ -105,7 +107,8 @@ export const ProfilePage: React.FC = () => {
 
   const { data: userPets = [] } = useUserPets(user?.id);
   const { data: userServices = [] } = useUserServices(user?.id);
-  const { data: favoritesData = { favorites: [], pets: [], services: [] } } = useUserFavorites(user?.id);
+  const { data: favoritesData = { favorites: [], pets: [], services: [] }, error: favoritesError } = userFavoritesHook(user?.id);
+  if (favoritesError) alert(MESSAGES.ERROR_GENERIC);
 
   // Mutations
   const updateProfileMutation = useUpdateProfile();
@@ -138,8 +141,7 @@ export const ProfilePage: React.FC = () => {
       // Garante que o perfil existe na tabela 'profiles'
       supabase.from('profiles').upsert({
         id: user.id,
-        full_name: user.user_metadata?.full_name || user.email || '',
-        // outros campos podem ser preenchidos aqui se necessário
+        full_name: user.user_metadata?.full_name || user.email || ''
       });
     }
   }, [user]);
@@ -162,21 +164,21 @@ export const ProfilePage: React.FC = () => {
   };
 
   const deletePet = async (petId: string) => {
-    if (!confirm('Are you sure you want to delete this pet listing?')) return;
-
+    if (!confirm(MESSAGES.CONFIRM_DELETE_PET)) return;
     try {
       await deletePetMutation.mutateAsync(petId);
     } catch (error) {
+      alert(MESSAGES.ERROR_DELETE_PET);
       console.error('Error:', error);
     }
   };
 
   const deleteService = async (serviceId: string) => {
-    if (!confirm('Are you sure you want to delete this service listing?')) return;
-
+    if (!confirm(MESSAGES.CONFIRM_DELETE_SERVICE)) return;
     try {
       await deleteServiceMutation.mutateAsync(serviceId);
     } catch (error) {
+      alert(MESSAGES.ERROR_DELETE_SERVICE);
       console.error('Error:', error);
     }
   };
@@ -187,7 +189,6 @@ export const ProfilePage: React.FC = () => {
     if (!user) return;
 
     try {
-      // Garante que o perfil existe e aguarda a operação
       await ensureProfile();
 
       await addPetMutation.mutateAsync({

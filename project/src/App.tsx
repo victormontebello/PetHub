@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from 'react';
+import { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Header } from './components/Header';
@@ -8,27 +8,24 @@ import { CreateListingPage } from './pages/CreateListingPage';
 import { ProductsPage } from './pages/ProductsPage';
 import { CartProvider } from './contexts/CartContext';
 import { CartPage } from './pages/CartPage';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
-// Lazy loading dos componentes
 const HomePage = lazy(() => import('./pages/HomePage').then(module => ({ default: module.HomePage })));
 const PetsPage = lazy(() => import('./pages/PetsPage').then(module => ({ default: module.PetsPage })));
 const ServicesPage = lazy(() => import('./pages/ServicesPage').then(module => ({ default: module.ServicesPage })));
 const AuthPage = lazy(() => import('./pages/AuthPage').then(module => ({ default: module.AuthPage })));
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then(module => ({ default: module.ProfilePage })));
 
-// Componente de loading
 const LoadingSpinner = () => (
   <div className="flex justify-center items-center min-h-[50vh]">
     <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
   </div>
 );
 
-// Configuração do React Query
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutos
-      cacheTime: 10 * 60 * 1000, // 10 minutos
+      staleTime: 5 * 60 * 1000,
       retry: 1,
       refetchOnWindowFocus: false,
     },
@@ -37,32 +34,34 @@ const queryClient = new QueryClient({
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <CartProvider>
-        <AuthProvider>
-          <Router>
-            <div className="min-h-screen bg-gray-50 text-gray-900 transition-colors">
-              <Header />
-              <main className="pt-16 px-2 sm:px-4">
-                <Suspense fallback={<LoadingSpinner />}>
-                  <Routes>
-                    <Route path="/" element={<HomePage />} />
-                    <Route path="/pets" element={<PetsPage />} />
-                    <Route path="/services" element={<ServicesPage />} />
-                    <Route path="/products" element={<ProductsPage />} />
-                    <Route path="/auth" element={<AuthPage />} />
-                    <Route path="/profile" element={<ProfilePage />} />
-                    <Route path="/create-listing" element={<CreateListingPage />} />
-                    <Route path="/cart" element={<CartPage />} />
-                  </Routes>
-                </Suspense>
-              </main>
-              <Footer />
-            </div>
-          </Router>
-        </AuthProvider>
-      </CartProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <CartProvider>
+          <AuthProvider>
+            <Router>
+              <div className="min-h-screen bg-gray-50 text-gray-900 transition-colors">
+                <Header />
+                <main className="pt-16 px-2 sm:px-4">
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <Routes>
+                      <Route path="/" element={<HomePage />} />
+                      <Route path="/pets" element={<PetsPage />} />
+                      <Route path="/services" element={<ServicesPage />} />
+                      <Route path="/products" element={<ProductsPage />} />
+                      <Route path="/auth" element={<AuthPage />} />
+                      <Route path="/profile" element={<ProfilePage />} />
+                      <Route path="/create-listing" element={<CreateListingPage />} />
+                      <Route path="/cart" element={<CartPage />} />
+                    </Routes>
+                  </Suspense>
+                </main>
+                <Footer />
+              </div>
+            </Router>
+          </AuthProvider>
+        </CartProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

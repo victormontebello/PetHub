@@ -3,9 +3,9 @@ import { Search, MapPin, Star, Sparkles, Heart, Shield, Users } from 'lucide-rea
 import {
   useServices,
   useProviderProfiles,
-  useUserFavorites,
-  useAddToFavorites,
-  useRemoveFromFavorites
+  userFavoritesHook,
+  addToFavoritesHook,
+  removeFromFavoritesHook
 } from '../hooks/useServicesQueries';
 import { ContactCard } from '../components/ContactCard';
 import { supabase } from '../lib/supabase';
@@ -23,7 +23,8 @@ export const ServicesPage: React.FC = () => {
     { id: 'walking', name: 'Caminhada de Cães' },
     { id: 'training', name: 'Treinamento de Pets' },
     { id: 'veterinary', name: 'Veterinária' },
-    { id: 'boarding', name: 'Alojamento de Pets' }
+    { id: 'boarding', name: 'Alojamento de Pets' },
+    { id: 'foster', name: 'Lar Temporário' }
   ];
 
   const serviceCategories = [
@@ -33,6 +34,7 @@ export const ServicesPage: React.FC = () => {
     { value: 'boarding', label: 'Hotelzinho' },
     { value: 'sitting', label: 'Cuidador' },
     { value: 'walking', label: 'Passeio' },
+    { value: 'foster', label: 'Lar Temporário' },
     { value: 'other', label: 'Outro' },
   ];
 
@@ -53,18 +55,20 @@ export const ServicesPage: React.FC = () => {
     }
   };
 
-  // React Query hooks
   const filters = {
     category: selectedService !== 'all' ? selectedService : undefined,
     search: searchQuery.trim() || undefined
   };
 
   const { data: services = [], isLoading, error } = useServices(filters);
-  const { data: favorites = [] } = useUserFavorites();
-  const addToFavoritesMutation = useAddToFavorites();
-  const removeFromFavoritesMutation = useRemoveFromFavorites();
+  const { data: favorites = [] } = userFavoritesHook();
+  const addToFavoritesMutation = addToFavoritesHook({
+    onError: (error: any) => alert(error.message)
+  });
+  const removeFromFavoritesMutation = removeFromFavoritesHook({
+    onError: (error: any) => alert(error.message)
+  });
 
-  // Extrair IDs dos provedores
   const providerIds = useMemo(() => {
     return services.map(service => service.provider_id).filter(Boolean);
   }, [services]);
@@ -73,16 +77,9 @@ export const ServicesPage: React.FC = () => {
 
   const handleToggleFavorite = async (serviceId: string) => {
     const isFavorite = favorites.includes(serviceId);
-    
-    try {
-      if (isFavorite) {
-        await removeFromFavoritesMutation.mutateAsync({ itemId: serviceId, itemType: 'service' });
-      } else {
-        await addToFavoritesMutation.mutateAsync({ itemId: serviceId, itemType: 'service' });
-      }
-    } catch (error) {
-      console.error('Error toggling favorite:', error);
-    }
+    isFavorite 
+      ? await removeFromFavoritesMutation.mutateAsync({ itemId: serviceId, itemType: 'service' })
+      : await addToFavoritesMutation.mutateAsync({ itemId: serviceId, itemType: 'service' });
   };
 
   const handleShowContact = async (providerId: string) => {

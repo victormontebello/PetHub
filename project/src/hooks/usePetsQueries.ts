@@ -1,7 +1,6 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, UseMutationOptions, UseQueryOptions } from '@tanstack/react-query';
 import { getPets, addToFavorites, removeFromFavorites, getUserFavorites } from '../lib/database';
 
-// Hook para buscar pets com filtros
 export const usePets = (filters: { category?: string; search?: string }) => {
   return useQuery({
     queryKey: ['pets', filters],
@@ -12,45 +11,41 @@ export const usePets = (filters: { category?: string; search?: string }) => {
   });
 };
 
-// Hook para buscar favoritos do usuário
-export const useUserFavorites = () => {
+export const userFavoritesHook = (options?: Partial<UseQueryOptions>) => {
   return useQuery({
     queryKey: ['userFavorites'],
     queryFn: async () => {
       const favorites = await getUserFavorites();
       return favorites.map((fav: any) => fav.item_id);
     },
+    ...(options || {})
   });
 };
 
-// Hook para adicionar aos favoritos
-export const useAddToFavorites = () => {
+export const addToFavoritesHook = (options?: Partial<UseMutationOptions<{ itemId: string; itemType: "pet" | "service" }, Error, { itemId: string; itemType: "pet" | "service" }>>) => {
   const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: async ({ itemId, itemType }: { itemId: string; itemType: string }) => {
+  return useMutation<{ itemId: string; itemType: "pet" | "service" }, Error, { itemId: string; itemType: "pet" | "service" }>({
+    mutationFn: async ({ itemId, itemType }) => {
       await addToFavorites(itemId, itemType);
       return { itemId, itemType };
     },
     onSuccess: () => {
-      // Invalida e refetch dos favoritos
       queryClient.invalidateQueries({ queryKey: ['userFavorites'] });
     },
+    ...(options || {})
   });
 };
 
-// Hook para remover dos favoritos
-export const useRemoveFromFavorites = () => {
+export const removeFromFavoritesHook = (options?: Partial<UseMutationOptions<{ itemId: string; itemType: "pet" | "service" }, Error, { itemId: string; itemType: "pet" | "service" }>>) => {
   const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: async ({ itemId, itemType }: { itemId: string; itemType: string }) => {
+  return useMutation<{ itemId: string; itemType: "pet" | "service" }, Error, { itemId: string; itemType: "pet" | "service" }>({
+    mutationFn: async ({ itemId, itemType }) => {
       await removeFromFavorites(itemId, itemType);
       return { itemId, itemType };
     },
     onSuccess: () => {
-      // Invalida e refetch dos favoritos
       queryClient.invalidateQueries({ queryKey: ['userFavorites'] });
     },
+    ...(options || {})
   });
 }; 

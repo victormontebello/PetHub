@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Camera, Upload, X } from 'lucide-react';
+import { Camera, X } from 'lucide-react';
 import { createService, createProduct } from '../lib/database';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '../lib/supabase';
@@ -41,6 +41,7 @@ export const CreateListingPage: React.FC = () => {
     { value: 'veterinary', label: 'Veterinário' },
     { value: 'training', label: 'Adestramento' },
     { value: 'boarding', label: 'Hospedagem' },
+    { value: 'foster', label: 'Lar Temporário' },
     { value: 'other', label: 'Outro' }
   ];
 
@@ -74,7 +75,7 @@ export const CreateListingPage: React.FC = () => {
       if (imageFile) {
         const fileExt = imageFile.name.split('.').pop();
         const fileName = `${uuidv4()}.${fileExt}`;
-        const { data, error: uploadError } = await supabase.storage
+        const {error: uploadError } = await supabase.storage
           .from('listings')
           .upload(fileName, imageFile);
         

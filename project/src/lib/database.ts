@@ -120,7 +120,6 @@ export interface Review {
   };
 }
 
-// Pet functions
 export const getPets = async (filters?: {
   category?: string;
   search?: string;

@@ -9,7 +9,6 @@ const countryCodes = [
   { code: '+351', label: 'Portugal' },
   { code: '+44', label: 'Reino Unido' },
   { code: '+34', label: 'Espanha' },
-  // Adicione mais países conforme necessário
 ];
 
 export const AuthPage: React.FC = () => {
@@ -25,6 +24,7 @@ export const AuthPage: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
@@ -37,6 +37,7 @@ export const AuthPage: React.FC = () => {
     try {
       if (isLogin) {
         await signIn(formData.email, formData.password);
+        navigate('/');
       } else {
         if (formData.password !== formData.confirmPassword) {
           throw new Error('As senhas não coincidem');
@@ -47,8 +48,9 @@ export const AuthPage: React.FC = () => {
           return;
         }
         await signUp(formData.email, formData.password, formData.name, `${formData.countryCode} ${formData.phone}`);
+        setSuccessMessage('Cadastro realizado! Por favor, confirme seu e-mail pelo link enviado.');
+        setIsLogin(true);
       }
-      navigate('/');
     } catch (err: any) {
       setError(err.message || 'Ocorreu um erro');
     } finally {
@@ -95,6 +97,12 @@ export const AuthPage: React.FC = () => {
             {error && (
               <div className="mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
                 {error}
+              </div>
+            )}
+
+            {successMessage && (
+              <div className="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm">
+                {successMessage}
               </div>
             )}
 
@@ -256,7 +264,7 @@ export const AuthPage: React.FC = () => {
                 onClick={() => setIsLogin(!isLogin)}
                 className="ml-1 text-primary-600 hover:text-primary-500 font-medium"
               >
-                {isLogin ? 'Login' : 'Criar Conta'}
+                {isLogin ? 'Criar Conta' : 'Login'}
               </button>
             </p>
           </div>

@@ -88,7 +88,7 @@ export const useUserServices = (userId: string | undefined) => {
 };
 
 // Hook para buscar favoritos do usuário
-export const useUserFavorites = (userId: string | undefined) => {
+export const userFavoritesHook = (userId: string | undefined) => {
   return useQuery({
     queryKey: ['userFavorites', userId],
     queryFn: async () => {

@@ -23,7 +23,7 @@ Este documento descreve a migração dos componentes que usavam `useEffect` para
 - `useUserProfile` - Busca perfil do usuário
 - `useUserPets` - Busca pets do usuário
 - `useUserServices` - Busca serviços do usuário
-- `useUserFavorites` - Busca favoritos do usuário
+- `userFavoritesHook` - Busca favoritos do usuário
 - `useAvailableVaccines` - Busca vacinas disponíveis
 - `useUpdateProfile` - Atualiza perfil
 - `useDeletePet` - Deleta pet
@@ -46,9 +46,9 @@ Este documento descreve a migração dos componentes que usavam `useEffect` para
 
 **Hooks criados:**
 - `usePets` - Busca pets com filtros
-- `useUserFavorites` - Busca favoritos do usuário
-- `useAddToFavorites` - Adiciona aos favoritos
-- `useRemoveFromFavorites` - Remove dos favoritos
+- `userFavoritesHook` - Busca favoritos do usuário
+- `addToFavoritesHook` - Adiciona aos favoritos
+- `removeFromFavoritesHook` - Remove dos favoritos
 
 ### 3. ServicesPage
 **Antes:**
@@ -64,9 +64,9 @@ Este documento descreve a migração dos componentes que usavam `useEffect` para
 **Hooks criados:**
 - `useServices` - Busca serviços com filtros
 - `useProviderProfiles` - Busca perfis dos provedores
-- `useUserFavorites` - Busca favoritos do usuário
-- `useAddToFavorites` - Adiciona aos favoritos
-- `useRemoveFromFavorites` - Remove dos favoritos
+- `userFavoritesHook` - Busca favoritos do usuário
+- `addToFavoritesHook` - Adiciona aos favoritos
+- `removeFromFavoritesHook` - Remove dos favoritos
 
 ## Benefícios da Migração
 
