@@ -377,7 +377,6 @@ export const getUserFavorites = async () => {
   return data;
 };
 
-// Booking functions
 export const createBooking = async (booking: Omit<Booking, 'id' | 'created_at' | 'updated_at'>) => {
   const { data, error } = await supabase
     .from('bookings')

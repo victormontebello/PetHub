@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import type { User } from '@supabase/supabase-js';
+import type { User, Session } from '@supabase/supabase-js';
 
 interface AuthContextType {
   user: User | null;
@@ -23,11 +23,13 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [session, setSession] = useState<Session | null>(null);
 
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
+      setSession(session ?? null);
       setLoading(false);
     });
 
@@ -35,12 +37,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setUser(session?.user ?? null);
+        setSession(session ?? null);
         setLoading(false);
       }
     );
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Expiração automática de sessão
+  useEffect(() => {
+    if (!session || !session.expires_at) return;
+    const expiresIn = session.expires_at * 1000 - Date.now();
+    if (expiresIn <= 0) {
+      signOut();
+      return;
+    }
+    const timeout = setTimeout(() => {
+      signOut();
+    }, expiresIn);
+    return () => clearTimeout(timeout);
+  }, [session]);
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({

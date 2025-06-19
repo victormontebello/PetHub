@@ -269,6 +269,21 @@ export const ProfilePage: React.FC = () => {
     setShowProfileImageModal(true);
   };
 
+  const handleProfileImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!['image/jpeg', 'image/png', 'image/jpg'].includes(file.type)) {
+        alert('Apenas imagens JPEG ou PNG são permitidas.');
+        return;
+      }
+      if (file.size > 2 * 1024 * 1024) { // 2MB
+        alert('O arquivo deve ter no máximo 2MB.');
+        return;
+      }
+      setProfileImageFile(file);
+    }
+  };
+
   const handleProfileImageUpload = async () => {
     if (!profileImageFile || !user) return;
     
@@ -656,7 +671,7 @@ export const ProfilePage: React.FC = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Localização</label>
                     <input required className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-3" value={newService.location} onChange={e => setNewService({ ...newService, location: e.target.value })} />
                     <label className="block text-sm font-medium text-gray-700 mb-1">Imagem (Opcional)</label>
-                    <input type="file" accept="image/*" className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-3" onChange={e => setImageFile(e.target.files ? e.target.files[0] : null)} />
+                    <input type="file" accept="image/*" onChange={e => setImageFile(e.target.files ? e.target.files[0] : null)} />
                     <div className="flex space-x-2 mt-2">
                       <button type="submit" className="bg-primary-500 text-white px-4 py-2 rounded-lg hover:bg-primary-600 transition-colors">Salvar</button>
                       <button type="button" onClick={() => setShowAddServiceForm(false)} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors">Cancelar</button>
@@ -914,7 +929,7 @@ export const ProfilePage: React.FC = () => {
                 ) : (
                   <User className="w-24 h-24 text-gray-300 mb-2" />
                 )}
-                <input type="file" accept="image/*" onChange={e => setProfileImageFile(e.target.files ? e.target.files[0] : null)} className="mb-2" />
+                <input type="file" accept="image/*" onChange={handleProfileImageFileChange} className="mb-2" />
               </div>
               <div className="flex justify-between">
                 <button onClick={handleProfileImageRemove} className="bg-red-100 text-red-700 px-4 py-2 rounded-lg hover:bg-red-200">Remover</button>

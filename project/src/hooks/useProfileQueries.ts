@@ -2,7 +2,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { getUserFavorites, getPetById, getServiceById } from '../lib/database';
 
-// Hook para buscar perfil do usuário
 export const useUserProfile = (userId: string | undefined) => {
   return useQuery({
     queryKey: ['userProfile', userId],
@@ -25,7 +24,6 @@ export const useUserProfile = (userId: string | undefined) => {
   });
 };
 
-// Hook para buscar pets do usuário
 export const useUserPets = (userId: string | undefined) => {
   return useQuery({
     queryKey: ['userPets', userId],
@@ -64,7 +62,6 @@ export const useUserPets = (userId: string | undefined) => {
   });
 };
 
-// Hook para buscar serviços do usuário
 export const useUserServices = (userId: string | undefined) => {
   return useQuery({
     queryKey: ['userServices', userId],
@@ -87,7 +84,6 @@ export const useUserServices = (userId: string | undefined) => {
   });
 };
 
-// Hook para buscar favoritos do usuário
 export const userFavoritesHook = (userId: string | undefined) => {
   return useQuery({
     queryKey: ['userFavorites', userId],
@@ -132,7 +128,6 @@ export const userFavoritesHook = (userId: string | undefined) => {
   });
 };
 
-// Hook para buscar vacinas disponíveis
 export const useAvailableVaccines = () => {
   return useQuery({
     queryKey: ['availableVaccines'],
@@ -144,7 +139,6 @@ export const useAvailableVaccines = () => {
   });
 };
 
-// Hook para atualizar perfil
 export const useUpdateProfile = () => {
   const queryClient = useQueryClient();
   
@@ -161,14 +155,12 @@ export const useUpdateProfile = () => {
       if (error) throw error;
       return profileData;
     },
-    onSuccess: (data, variables) => {
-      // Invalida e refetch do perfil
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['userProfile', variables.userId] });
     },
   });
 };
 
-// Hook para deletar pet
 export const useDeletePet = () => {
   const queryClient = useQueryClient();
   
@@ -183,7 +175,6 @@ export const useDeletePet = () => {
       return petId;
     },
     onSuccess: () => {
-      // Invalida e refetch dos pets
       queryClient.invalidateQueries({ queryKey: ['userPets'] });
     },
   });
@@ -226,7 +217,7 @@ export const useAddPet = () => {
         const { v4: uuidv4 } = await import('uuid');
         const fileExt = imageFile.name.split('.').pop();
         const fileName = `${uuidv4()}.${fileExt}`;
-        const { data, error: uploadError } = await supabase.storage.from('pets').upload(fileName, imageFile);
+        const { error: uploadError } = await supabase.storage.from('pets').upload(fileName, imageFile);
         if (uploadError) throw uploadError;
         const { data: publicUrlData } = supabase.storage.from('pets').getPublicUrl(fileName);
         imageUrl = publicUrlData.publicUrl;
@@ -274,7 +265,7 @@ export const useAddService = () => {
         const { v4: uuidv4 } = await import('uuid');
         const fileExt = imageFile.name.split('.').pop();
         const fileName = `${uuidv4()}.${fileExt}`;
-        const { data, error: uploadError } = await supabase.storage.from('services').upload(fileName, imageFile);
+        const { error: uploadError } = await supabase.storage.from('services').upload(fileName, imageFile);
         if (uploadError) throw uploadError;
         const { data: publicUrlData } = supabase.storage.from('services').getPublicUrl(fileName);
         imageUrl = publicUrlData.publicUrl;
@@ -331,7 +322,7 @@ export const useUpdateProfileImage = () => {
       
       return publicUrlData.publicUrl;
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (_data, variables) => {
       // Invalida e refetch do perfil
       queryClient.invalidateQueries({ queryKey: ['userProfile', variables.userId] });
     },
@@ -362,7 +353,7 @@ export const useRemoveProfileImage = () => {
       
       return '';
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (_data, variables) => {
       // Invalida e refetch do perfil
       queryClient.invalidateQueries({ queryKey: ['userProfile', variables] });
     },

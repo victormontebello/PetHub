@@ -1,9 +1,9 @@
 import { Suspense, lazy } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CreateListingPage } from './pages/CreateListingPage';
 import { ProductsPage } from './pages/ProductsPage';
 import { CartProvider } from './contexts/CartContext';
@@ -32,6 +32,13 @@ const queryClient = new QueryClient({
   },
 });
 
+function PrivateRoute({ children }: { children: JSX.Element }) {
+  const { user, loading } = useAuth();
+  if (loading) return <div>Carregando...</div>;
+  if (!user) return <Navigate to="/auth" replace />;
+  return children;
+}
+
 function App() {
   return (
     <ErrorBoundary>
@@ -49,9 +56,9 @@ function App() {
                       <Route path="/services" element={<ServicesPage />} />
                       <Route path="/products" element={<ProductsPage />} />
                       <Route path="/auth" element={<AuthPage />} />
-                      <Route path="/profile" element={<ProfilePage />} />
-                      <Route path="/create-listing" element={<CreateListingPage />} />
-                      <Route path="/cart" element={<CartPage />} />
+                      <Route path="/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
+                      <Route path="/create-listing" element={<PrivateRoute><CreateListingPage /></PrivateRoute>} />
+                      <Route path="/cart" element={<PrivateRoute><CartPage /></PrivateRoute>} />
                     </Routes>
                   </Suspense>
                 </main>

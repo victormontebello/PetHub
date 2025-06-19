@@ -2,7 +2,6 @@ import { useQuery, useMutation, useQueryClient, UseMutationOptions } from '@tans
 import { getServices, addToFavorites, removeFromFavorites, getUserFavorites } from '../lib/database';
 import { supabase } from '../lib/supabase';
 
-// Hook para buscar serviços com filtros
 export const useServices = (filters: { service?: string; search?: string }) => {
   return useQuery({
     queryKey: ['services', filters],
@@ -13,7 +12,6 @@ export const useServices = (filters: { service?: string; search?: string }) => {
   });
 };
 
-// Hook para buscar perfis dos provedores
 export const useProviderProfiles = (providerIds: string[]) => {
   return useQuery({
     queryKey: ['providerProfiles', providerIds],
@@ -38,7 +36,6 @@ export const useProviderProfiles = (providerIds: string[]) => {
   });
 };
 
-// Hook para buscar favoritos do usuário
 export const userFavoritesHook = () => {
   return useQuery({
     queryKey: ['userFavorites'],
@@ -49,7 +46,6 @@ export const userFavoritesHook = () => {
   });
 };
 
-// Hook para adicionar aos favoritos
 export const addToFavoritesHook = (options?: Partial<UseMutationOptions<{ itemId: string; itemType: "pet" | "service" }, Error, { itemId: string; itemType: "pet" | "service" }>>) => {
   const queryClient = useQueryClient();
   return useMutation<{ itemId: string; itemType: "pet" | "service" }, Error, { itemId: string; itemType: "pet" | "service" }>({
@@ -64,7 +60,6 @@ export const addToFavoritesHook = (options?: Partial<UseMutationOptions<{ itemId
   });
 };
 
-// Hook para remover dos favoritos
 export const removeFromFavoritesHook = (options?: Partial<UseMutationOptions<{ itemId: string; itemType: "pet" | "service" }, Error, { itemId: string; itemType: "pet" | "service" }>>) => {
   const queryClient = useQueryClient();
   return useMutation<{ itemId: string; itemType: "pet" | "service" }, Error, { itemId: string; itemType: "pet" | "service" }>({

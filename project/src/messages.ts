@@ -14,13 +14,9 @@ export const MESSAGES = {
   ERROR_CONFIRM_EMAIL: 'Por favor, confirme seu e-mail pelo link enviado.',
   ERROR_FAVORITE: 'Erro ao favoritar item.',
   ERROR_UNFAVORITE: 'Erro ao remover dos favoritos.',
-
-  // Confirmações
   CONFIRM_DELETE_PET: 'Tem certeza que deseja deletar este pet?',
   CONFIRM_DELETE_SERVICE: 'Tem certeza que deseja deletar este serviço?',
   CONFIRM_SIGNUP: 'Cadastro realizado! Por favor, confirme seu e-mail pelo link enviado.',
-
-  // Outros
   SUCCESS_PROFILE_UPDATE: 'Perfil atualizado com sucesso!',
   SUCCESS_ADD_PET: 'Pet adicionado com sucesso!',
   SUCCESS_ADD_SERVICE: 'Serviço adicionado com sucesso!',
